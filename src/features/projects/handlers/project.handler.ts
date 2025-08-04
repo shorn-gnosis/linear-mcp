@@ -112,6 +112,7 @@ export class ProjectHandler extends BaseHandler {
 
       const result = await client.getProject(args.id);
 
+      // Return the project object directly so callers can access enriched fields like priority/status/teams
       return this.createJsonResponse(result);
     } catch (error) {
       this.handleError(error, 'get project info');
@@ -126,13 +127,103 @@ export class ProjectHandler extends BaseHandler {
       const client = this.verifyAuth();
       this.validateRequiredParams(args, ['name']);
 
+      const {
+        ignoreDefaultTeamScope = false,
+        onlyCRCAndGRO = true
+      } = args;
+
       const result = await client.searchProjects({
         name: { eq: args.name }
       });
 
+      // Default CRC/GRO scope on search results (client-side)
+      if (!ignoreDefaultTeamScope) {
+        const DEFAULT_CRC = '5870febf-b340-44b0-89eb-1f7127618e9f';
+        const DEFAULT_GRO = '355a6c2f-a0db-4ae8-8218-c2c6f303f989';
+        const allowedTeamIds = onlyCRCAndGRO ? [DEFAULT_CRC, DEFAULT_GRO] : [DEFAULT_CRC];
+
+        const filteredNodes = (result.projects?.nodes ?? []).filter((p: any) => {
+          const teamNodes = p?.teams?.nodes ?? [];
+          return teamNodes.some((t: any) => allowedTeamIds.includes(t.id));
+        });
+
+        const filtered = {
+          projects: {
+            nodes: filteredNodes
+          }
+        };
+        return this.createJsonResponse(filtered);
+      }
+
       return this.createJsonResponse(result);
     } catch (error) {
       this.handleError(error, 'search projects');
+    }
+  }
+
+  /**
+   * Lists projects with pagination and optional filters.
+   * Supports convenience onlyCRCAndGRO flag which injects CRC/GRO team IDs if teamIds not provided.
+   */
+  async handleListProjects(args: any = {}): Promise<BaseToolResponse> {
+    try {
+      const client = this.verifyAuth();
+
+      const {
+        first = 50,
+        after,
+        teamIds,
+        states,
+        includeArchived = false,
+        query,
+        onlyCRCAndGRO = true, // default to CRC/GRO scoping
+        ignoreDefaultTeamScope = false
+      } = args;
+
+      // Default CRC/GRO team IDs (client-side filter since ProjectFilter doesn't support team filter)
+      const DEFAULT_CRC = '5870febf-b340-44b0-89eb-1f7127618e9f';
+      const DEFAULT_GRO = '355a6c2f-a0db-4ae8-8218-c2c6f303f989';
+
+      // Determine effective team scope preference (used for client-side filtering)
+      const preferTeamScope = !ignoreDefaultTeamScope && (!Array.isArray(teamIds) || teamIds.length === 0);
+
+      // Build Linear ProjectFilter (do NOT include team constraints here — not supported by ProjectFilter)
+      const filter: Record<string, unknown> = {};
+
+      if (Array.isArray(states) && states.length > 0) {
+        // ProjectFilter: status: { type: { in: [...] } }
+        filter.status = { type: { in: states } };
+      }
+      // Do NOT include archived in GraphQL filter (not supported by ProjectFilter). We'll handle client-side.
+      if (query && typeof query === 'string' && query.trim().length > 0) {
+        // ProjectFilter query: { contains: "text" }
+        filter.query = { contains: query };
+      }
+
+      // If no filters were set, pass undefined to avoid sending empty object
+      const finalFilter = Object.keys(filter).length ? filter : undefined;
+
+      const result = await client.listProjects(finalFilter, first, after);
+
+      // Client-side team filtering to default to CRC (and optionally GRO) scope
+      if (preferTeamScope) {
+        const allowedTeamIds = onlyCRCAndGRO ? [DEFAULT_CRC, DEFAULT_GRO] : [DEFAULT_CRC];
+        const filteredNodes = (result.projects?.nodes ?? []).filter((p: any) => {
+          const teamNodes = p?.teams?.nodes ?? [];
+          return teamNodes.some((t: any) => allowedTeamIds.includes(t.id));
+        });
+        const filtered = {
+          projects: {
+            pageInfo: result.projects.pageInfo,
+            nodes: filteredNodes,
+          },
+        };
+        return this.createJsonResponse(filtered);
+      }
+
+      return this.createJsonResponse(result);
+    } catch (error) {
+      this.handleError(error, 'list projects');
     }
   }
 }

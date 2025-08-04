@@ -374,6 +374,85 @@ export const toolSchemas = {
     },
   },
 
+  linear_list_projects: {
+    name: 'linear_list_projects',
+    description: 'List projects with pagination and optional filters (priority, status, dates, teams).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        first: {
+          type: 'number',
+          description: 'Number of projects to return (default: 50)',
+          optional: true
+        },
+        after: {
+          type: 'string',
+          description: 'Cursor for pagination',
+          optional: true
+        },
+        teamIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Filter by team IDs',
+          optional: true
+        },
+        states: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Filter by project status types (e.g., backlog, started, paused, completed, canceled)',
+          optional: true
+        },
+        includeArchived: {
+          type: 'boolean',
+          description: 'Include archived projects (default: false)',
+          optional: true
+        },
+        query: {
+          type: 'string',
+          description: 'Text search in project name/description',
+          optional: true
+        },
+        onlyCRCAndGRO: {
+          type: 'boolean',
+          description: 'If true and teamIds not provided, auto-filter to CRC and GRO teams',
+          optional: true
+        }
+      }
+    }
+  },
+
+  linear_probe_initiatives: {
+    name: 'linear_probe_initiatives',
+    description: 'Probe whether Initiatives are exposed in this Linear workspace; returns either initiative nodes or an error message.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        first: {
+          type: 'number',
+          description: 'Number of initiatives to fetch (default: 20)',
+          optional: true
+        },
+        after: {
+          type: 'string',
+          description: 'Cursor for pagination',
+          optional: true
+        }
+      }
+    }
+  },
+
+  linear_list_initiatives: {
+    name: 'linear_list_initiatives',
+    description: 'List initiatives with pagination (id, name, description, url, status, startedAt, targetDate, lead, teams, createdAt, updatedAt).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        first: { type: 'number', description: 'Number of initiatives to return (default: 50)', optional: true },
+        after: { type: 'string', description: 'Cursor for pagination', optional: true }
+      }
+    }
+  },
+
   linear_create_issues: {
     name: 'linear_create_issues',
     description: 'Create multiple issues at once',

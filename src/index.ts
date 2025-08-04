@@ -37,8 +37,8 @@ class LinearServer {
 
     this.auth = new LinearAuth();
     
-    // Initialize with API Key if available
-    const apiKey = process.env.LINEAR_API_KEY;
+    // Initialize with API Key if available (support both LINEAR_API_KEY and LINEAR_ACCESS_TOKEN)
+    const apiKey = process.env.LINEAR_API_KEY || process.env.LINEAR_ACCESS_TOKEN;
     if (apiKey) {
       this.auth.initialize({
         type: 'api',

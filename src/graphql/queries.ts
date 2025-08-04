@@ -58,6 +58,72 @@ export const SEARCH_ISSUES_QUERY = gql`
   }
 `;
 
+export const INITIATIVES_PROBE_QUERY = gql`
+  query InitiativesProbe($first: Int, $after: String) {
+    initiatives(first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        id
+        name
+        description
+        url
+        status
+        startedAt
+        targetDate
+        createdAt
+        updatedAt
+        lead {
+          id
+          name
+          email
+        }
+        teams {
+          nodes {
+            id
+            name
+            key
+          }
+        }
+      }
+    }
+  }
+`;
+
+// List initiatives with pagination (minimal fields)
+export const LIST_INITIATIVES_QUERY = gql`
+  query ListInitiatives($first: Int, $after: String) {
+    initiatives(first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        id
+        name
+        description
+        url
+        status
+        startedAt
+        targetDate
+        createdAt
+        updatedAt
+        owner { id name email }
+        projects {
+          nodes {
+            id
+            name
+            status { type name }
+            teams { nodes { id key name } }
+          }
+        }
+      }
+    }
+  }
+`;
+
 export const GET_TEAMS_QUERY = gql`
   query GetTeams {
     teams {
@@ -111,10 +177,26 @@ export const SEARCH_PROJECTS_QUERY = gql`
         name
         description
         url
+        status {
+          type
+          name
+        }
+        priority
+        priorityLabel
+        startDate
+        targetDate
+        createdAt
+        updatedAt
+        lead {
+          id
+          name
+          email
+        }
         teams {
           nodes {
             id
             name
+            key
           }
         }
       }
@@ -129,10 +211,66 @@ export const GET_PROJECT_QUERY = gql`
       name
       description
       url
+      status {
+        type
+        name
+      }
+      priority
+      priorityLabel
+      startDate
+      targetDate
+      createdAt
+      updatedAt
+      lead {
+        id
+        name
+        email
+      }
       teams {
         nodes {
           id
           name
+          key
+        }
+      }
+    }
+  }
+`;
+
+// List projects with pagination and filters
+export const LIST_PROJECTS_QUERY = gql`
+  query ListProjects($filter: ProjectFilter, $first: Int, $after: String) {
+    projects(filter: $filter, first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        id
+        name
+        description
+        url
+        status {
+          type
+          name
+        }
+        priority
+        priorityLabel
+        startDate
+        targetDate
+        createdAt
+        updatedAt
+        lead {
+          id
+          name
+          email
+        }
+        teams {
+          nodes {
+            id
+            name
+            key
+          }
         }
       }
     }

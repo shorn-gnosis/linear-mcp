@@ -169,6 +169,32 @@ export class LinearGraphQLClient {
     return this.execute<SearchProjectsResponse>(SEARCH_PROJECTS_QUERY, { filter });
   }
 
+  // List projects with pagination and filters
+  async listProjects(
+    filter: Record<string, unknown> | undefined,
+    first: number = 50,
+    after?: string
+  ): Promise<SearchProjectsResponse & {
+    projects: {
+      pageInfo: { hasNextPage: boolean; endCursor: string | null };
+    }
+  }> {
+    const { LIST_PROJECTS_QUERY } = await import('./queries.js');
+    return this.execute(LIST_PROJECTS_QUERY as any, { filter, first, after });
+  }
+
+  // Probe initiatives connection (non-fatal): returns { ok, data?, error? }
+  async probeInitiatives(first: number = 20, after?: string): Promise<{ ok: boolean; data?: any; error?: string }> {
+    try {
+      const { INITIATIVES_PROBE_QUERY } = await import('./queries.js');
+      const data = await this.execute<any>(INITIATIVES_PROBE_QUERY, { first, after });
+      return { ok: true, data };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, error: msg };
+    }
+  }
+
   // Delete a single issue
   async deleteIssue(id: string): Promise<DeleteIssueResponse> {
     const { DELETE_ISSUE_MUTATION } = await import('./mutations.js');
@@ -181,5 +207,19 @@ export class LinearGraphQLClient {
   async deleteIssues(ids: string[]): Promise<DeleteIssueResponse> {
     const { DELETE_ISSUES_MUTATION } = await import('./mutations.js');
     return this.execute<DeleteIssueResponse>(DELETE_ISSUES_MUTATION, { ids });
+  }
+
+  // List initiatives with pagination (minimal fields)
+  async listInitiatives(
+    first: number = 50,
+    after?: string
+  ): Promise<{
+    initiatives: {
+      pageInfo: { hasNextPage: boolean; endCursor: string | null };
+      nodes: any[];
+    };
+  }> {
+    const { LIST_INITIATIVES_QUERY } = await import('./queries.js');
+    return this.execute<any>(LIST_INITIATIVES_QUERY, { first, after });
   }
 }

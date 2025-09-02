@@ -1,170 +1,272 @@
 # Linear MCP Server
 
-An MCP server for interacting with Linear's API. This server provides a set of tools for managing Linear issues, projects, and teams through Cline.
+A comprehensive MCP (Model Context Protocol) server for interacting with Linear's API. This server provides a complete toolkit for managing Linear issues, projects, teams, and initiatives through Claude Desktop.
 
-## Setup Guide
+## 🎉 Claude Desktop Extension (Recommended)
 
-### 1. Environment Setup
+The easiest way to use this Linear MCP server is through the Claude Desktop extension.
 
-1. Clone the repository
-2. Install dependencies:
+### Quick Setup
+
+1. **Get your Linear Access Token**:
+   - Go to [Linear Settings → API](https://linear.app/settings/api)
+   - Create a new "Personal API key"
+   - Copy the token (starts with `lin_oauth_...`)
+
+2. **Build the Extension**:
    ```bash
+   git clone https://github.com/your-repo/linear-mcp
+   cd linear-mcp
+   npm install
+   npm run build
+   node scripts/build-claude-extension.js
+   ```
+
+3. **Install in Claude Desktop**:
+   - Open Claude Desktop
+   - Go to Settings → Extensions
+   - Install the generated `dist/claude-extension/claude-extension.dxt` file
+   - The extension will prompt for your Linear token during build
+
+### Available Tools (18 Total)
+
+#### 🔧 Core Tools
+- **test_connection** - Test Linear API connection and show user info
+- **linear_get_user** - Get current user information  
+- **linear_get_teams** - Get all teams with states and labels
+
+#### 📝 Issue Management
+- **linear_search_issues** - Advanced issue search with filtering
+- **linear_create_issue** - Create single issue with priorities, estimates, projects
+- **linear_create_issues** - Create multiple issues at once
+- **linear_bulk_update_issues** - Update multiple issues (states, assignees, priorities)
+- **linear_delete_issue** - Delete single issue
+- **linear_delete_issues** - Delete multiple issues
+
+#### 📊 Project Management
+- **linear_list_projects** - List projects with filtering (priorities, status, teams)
+- **linear_get_project** - Get detailed project information
+- **linear_search_projects** - Search projects by name
+- **linear_create_project_with_issues** - Create project with associated issues
+
+#### 🚀 Advanced Features
+- **linear_probe_initiatives** - Check if Initiatives are available in workspace
+- **linear_list_initiatives** - List initiatives with full details
+
+#### 🔐 Authentication (Placeholders)
+- **linear_auth** - OAuth initialization (not supported in extension)
+- **linear_auth_callback** - OAuth callback (not supported in extension)
+
+## 🖥️ Standalone MCP Server (Alternative)
+
+You can also run this as a standalone MCP server for other MCP clients.
+
+### Setup
+
+1. **Clone and Install**:
+   ```bash
+   git clone https://github.com/your-repo/linear-mcp
+   cd linear-mcp
    npm install
    ```
-3. Copy `.env.example` to `.env`:
+
+2. **Configure Authentication**:
    ```bash
    cp .env.example .env
+   # Add your Linear API key to .env
+   LINEAR_ACCESS_TOKEN=your_linear_token
    ```
 
-### 2. Authentication
-
-The server supports two authentication methods:
-
-#### API Key (Recommended)
-
-1. Go to Linear Settings
-2. Navigate to the "Security & access" section
-3. Find the "Personal API keys" section
-4. Click "New API key"
-5. Give the key a descriptive label (e.g. "Cline MCP")
-6. Copy the generated token immediately
-7. Add the token to your `.env` file:
-   ```
-   LINEAR_API_KEY=your_api_key
-   ```
-
-#### OAuth Flow (Alternative) ***NOT IMPLEMENTED***
-
-1. Create an OAuth application at https://linear.app/settings/api/applications
-2. Configure OAuth environment variables in `.env`:
-   ```
-   LINEAR_CLIENT_ID=your_oauth_client_id
-   LINEAR_CLIENT_SECRET=your_oauth_client_secret
-   LINEAR_REDIRECT_URI=http://localhost:3000/callback
-   ```
-
-### 3. Running the Server
-
-1. Build the server:
+3. **Build and Run**:
    ```bash
    npm run build
-   ```
-2. Start the server:
-   ```bash
    npm start
    ```
 
-### 4. Cline Integration
+### MCP Client Integration
 
-1. Open your Cline MCP settings file:
-   - macOS: `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
-   - Windows: `%APPDATA%/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
-   - Linux: `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+Add to your MCP client configuration:
+```json
+{
+  "mcpServers": {
+    "linear": {
+      "command": "node",
+      "args": ["/path/to/linear-mcp/build/index.js"],
+      "env": {
+        "LINEAR_ACCESS_TOKEN": "your_linear_token"
+      }
+    }
+  }
+}
+```
 
-2. Add the Linear MCP server configuration:
-   ```json
-   {
-     "mcpServers": {
-       "linear": {
-         "command": "node",
-         "args": ["/path/to/linear-mcp/build/index.js"],
-         "env": {
-           "LINEAR_API_KEY": "your_personal_access_token"
-         },
-         "disabled": false,
-         "autoApprove": []
-       }
-     }
-   }
-   ```
+## ✨ Key Features
 
-## Available Actions
+### 🔍 Advanced Search & Filtering
+- Search issues by text, identifier, team, assignee, state, priority
+- Filter projects by status, teams, dates
+- Pagination support for large datasets
 
-The server currently supports the following operations:
+### 🎯 Comprehensive Issue Management
+- Create issues with priorities, estimates, labels, projects
+- Bulk operations for creating, updating, and deleting issues
+- Support for issue relationships and project associations
 
-### Issue Management
-- ✅ Create issues with full field support (title, description, team, project, etc.)
-- ✅ Update existing issues (priority, description, etc.)
-- ✅ Delete issues (single or bulk deletion)
-- ✅ Search issues with filtering
-- ✅ Associate issues with projects
-- ✅ Create parent/child issue relationships
+### 📊 Project & Team Operations
+- Create projects with associated issues and multiple teams
+- Get detailed project information including progress and metrics
+- Access team workflows, states, and labels
 
-### Project Management
-- ✅ Create projects with associated issues
-- ✅ Get project information
-- ✅ Associate issues with projects
+### 🚀 Enterprise Features
+- Initiative support for workspaces that have it enabled
+- Bulk operations optimized for large-scale management
+- Comprehensive error handling and validation
 
-### Team Management
-- ✅ Get team information (with states and workflow details)
-- ✅ Access team states and labels
+### 🔐 Secure Authentication
+- Personal Access Token support (recommended)
+- Token validation and secure storage
+- Graceful handling of authentication failures
 
-### Authentication
-- ✅ API Key authentication
-- ✅ Secure token storage
+## 🛠️ Tool Examples
 
-### Batch Operations
-- ✅ Bulk issue creation
-- ✅ Bulk issue deletion
+### Create an Issue
+```javascript
+// Using linear_create_issue
+{
+  "title": "Fix login bug",
+  "description": "Users can't log in with Google OAuth",
+  "teamId": "team-123",
+  "priority": 2,
+  "estimate": 5,
+  "projectId": "project-456"
+}
+```
 
-### Bulk Updates (In Testing)
-- 🚧 Bulk issue updates (parallel processing implemented, needs testing)
+### Search Issues
+```javascript
+// Using linear_search_issues
+{
+  "query": "login bug",
+  "teamIds": ["team-123"],
+  "states": ["In Progress", "Todo"],
+  "priority": 2,
+  "first": 20
+}
+```
 
-## Features in Development
+### Create Project with Issues
+```javascript
+// Using linear_create_project_with_issues
+{
+  "project": {
+    "name": "Q1 2025 Planning",
+    "description": "Strategic initiatives for Q1",
+    "teamIds": ["team-123", "team-456"]
+  },
+  "issues": [
+    {
+      "title": "Define Q1 goals",
+      "description": "Set quarterly objectives",
+      "teamId": "team-123"
+    }
+  ]
+}
+```
 
-The following features are currently being worked on:
+## 🔧 Development
 
-### Issue Management
-- 🚧 Comment functionality (add/edit comments, threading)
-- 🚧 Complex search filters
-- 🚧 Pagination support for large result sets
-
-### Metadata Operations
-- 🚧 Label management (create/update/assign)
-- 🚧 Cycle/milestone management
-
-### Project Management
-- 🚧 Project template support
-- 🚧 Advanced project operations
-
-### Authentication
-- 🚧 OAuth flow with automatic token refresh
-
-### Performance & Security
-- 🚧 Rate limiting
-- 🚧 Detailed logging
-- 🚧 Load testing and optimization
-
-## Development
+### Building from Source
 
 ```bash
 # Install dependencies
 npm install
 
-# Run tests
-npm test
-
-# Run integration tests (requires LINEAR_API_KEY)
-npm run test:integration
-
-# Build the server
+# Build TypeScript source
 npm run build
 
-# Start the server
-npm start
+# Build Claude Desktop extension
+node scripts/build-claude-extension.js
+
+# Package extension for distribution
+cd dist/claude-extension && npx -y @anthropic-ai/dxt pack
 ```
 
-## Integration Testing
+### Testing
 
-Integration tests verify that authentication and API calls work correctly:
+```bash
+# Run unit tests
+npm test
 
-1. Set up authentication (API Key recommended for testing)
-2. Run integration tests:
-   ```bash
-   npm run test:integration
-   ```
+# Run integration tests (requires LINEAR_ACCESS_TOKEN)
+npm run test:integration
 
-For OAuth testing:
-1. Configure OAuth credentials in `.env`
-2. Remove `.skip` from OAuth tests in `src/__tests__/auth.integration.test.ts`
-3. Run integration tests
+# Test server startup
+node scripts/test-server-startup.js
+```
+
+### Project Structure
+
+```
+linear-mcp/
+├── src/                          # TypeScript source code
+│   ├── features/                 # Feature-specific handlers
+│   │   ├── issues/              # Issue management
+│   │   ├── projects/            # Project management  
+│   │   ├── teams/               # Team operations
+│   │   └── users/               # User operations
+│   ├── core/                    # Core MCP infrastructure
+│   ├── graphql/                 # GraphQL client and queries
+│   └── index.ts                 # Main server entry point
+├── dist/claude-extension/        # Claude Desktop extension
+│   ├── server/simple-server.js  # Working extension server
+│   ├── manifest.json            # Extension manifest
+│   └── claude-extension.dxt     # Packaged extension
+├── scripts/                     # Build and utility scripts
+└── build/                       # Compiled JavaScript output
+```
+
+## 🐛 Troubleshooting
+
+### Claude Desktop Extension Issues
+
+1. **"Unable to connect to extension server"**
+   - Ensure you're using the latest packaged `.dxt` file
+   - Check that your Linear token is valid
+   - Try reinstalling the extension
+
+2. **"require is not defined" errors**
+   - This is fixed in the current version
+   - Make sure you're using `simple-server.js` as the entry point
+
+3. **Missing Linear tools**
+   - Verify the extension installed correctly
+   - Check that all 18 tools are visible in Claude Desktop permissions
+
+### API Issues
+
+1. **Authentication failures**
+   - Verify your Linear token is correct and hasn't expired
+   - Ensure the token has appropriate permissions
+   - Check Linear API status
+
+2. **GraphQL errors**
+   - Some features (like Initiatives) may not be available in all workspaces
+   - Use `linear_probe_initiatives` to check availability
+
+## 📄 License
+
+MIT License - see LICENSE file for details.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
+
+## 📚 Resources
+
+- [Linear API Documentation](https://developers.linear.app/)
+- [Model Context Protocol Specification](https://modelcontextprotocol.io/)
+- [Claude Desktop Extensions](https://claude.ai/extensions)

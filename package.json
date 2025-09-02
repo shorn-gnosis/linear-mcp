@@ -1,23 +1,32 @@
 {
   "name": "linear-mcp",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "A comprehensive MCP server for Linear API integration with Claude Desktop extension support",
+  "main": "build/index.js",
   "type": "module",
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:integration": "jest --testPathPattern '\\.integration\\.test\\.ts$'",
+    "test:integration": "jest --testPathPattern '\\.integration\\.test\\.ts'",
     "get-test-tokens": "node --loader ts-node/esm scripts/get-test-tokens.ts",
     "test:oauth": "node --loader ts-node/esm scripts/test-oauth.ts",
     "build": "tsc && chmod +x build/index.js",
     "start": "node build/index.js",
-    "dev": "nodemon --watch src --ext ts --exec \"npm run build && npm start\""
+    "dev": "nodemon --watch src --ext ts --exec \"npm run build && npm start\"",
+    "build:extension": "npm run build && node scripts/build-claude-extension.js && cd dist/claude-extension && npx -y @anthropic-ai/dxt pack",
+    "build:manifest": "node scripts/build-claude-extension.js",
+    "copy:server": "node scripts/copy-server-files.js",
+    "package:extension": "cd dist/claude-extension && npx -y @anthropic-ai/dxt pack",
+    "test:server": "node scripts/test-server-startup.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["linear", "mcp", "claude", "api", "project-management", "issues"],
+  "author": "Linear MCP Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-repo/linear-mcp"
+  },
   "devDependencies": {
     "@types/dotenv": "^8.2.3",
     "@types/express": "^5.0.0",

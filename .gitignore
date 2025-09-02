@@ -30,3 +30,12 @@ Thumbs.db
 
 # Test coverage
 coverage/
+
+# Claude Desktop extension (keep source, ignore built files)
+dist/claude-extension/claude-extension.dxt
+dist/claude-extension/server/node_modules/
+
+# Temporary files
+*.tmp
+*.temp
+/workflow-state-enhancement-bundle

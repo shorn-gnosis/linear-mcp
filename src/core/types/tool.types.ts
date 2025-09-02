@@ -70,16 +70,6 @@ export const toolSchemas = {
           description: 'Issue priority (0-4)',
           optional: true,
         },
-        estimate: {
-          type: 'number',
-          description: 'Issue estimate points (typically 1, 2, 3, 5, 8, etc.)',
-          optional: true,
-        },
-        projectId: {
-          type: 'string',
-          description: 'Project ID',
-          optional: true,
-        },
         createAsUser: {
           type: 'string',
           description: 'Name to display for the created issue',
@@ -222,11 +212,6 @@ export const toolSchemas = {
               description: 'New priority (0-4)',
               optional: true,
             },
-            estimate: {
-              type: 'number',
-              description: 'Issue estimate points (typically 1, 2, 3, 5, 8, etc.)',
-              optional: true,
-            },
           },
         },
       },
@@ -346,7 +331,7 @@ export const toolSchemas = {
 
   linear_get_project: {
     name: 'linear_get_project',
-    description: 'Get project information',
+    description: 'Get project information (includes priority, status, teams)',
     inputSchema: {
       type: 'object',
       properties: {
@@ -374,62 +359,31 @@ export const toolSchemas = {
     },
   },
 
-  linear_list_projects: {
-    name: 'linear_list_projects',
-    description: 'List projects with pagination and optional filters (priority, status, dates, teams).',
+  linear_get_projects: {
+    name: 'linear_get_projects',
+    description: 'List projects with optional filters; returns priority, status, teams',
     inputSchema: {
       type: 'object',
       properties: {
-        first: {
-          type: 'number',
-          description: 'Number of projects to return (default: 50)',
-          optional: true
-        },
-        after: {
-          type: 'string',
-          description: 'Cursor for pagination',
-          optional: true
-        },
         teamIds: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Filter by team IDs',
+          description: 'Team IDs to include. Default: CRC and Circles Partners',
           optional: true
         },
-        states: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Filter by project status types (e.g., backlog, started, paused, completed, canceled)',
+        status: {
+          type: 'string',
+          description: 'Project status filter (planned|inProgress|paused|completed|canceled)',
           optional: true
         },
         includeArchived: {
           type: 'boolean',
-          description: 'Include archived projects (default: false)',
+          description: 'Include archived projects',
           optional: true
         },
-        query: {
-          type: 'string',
-          description: 'Text search in project name/description',
-          optional: true
-        },
-        onlyCRCAndGRO: {
-          type: 'boolean',
-          description: 'If true and teamIds not provided, auto-filter to CRC and GRO teams',
-          optional: true
-        }
-      }
-    }
-  },
-
-  linear_probe_initiatives: {
-    name: 'linear_probe_initiatives',
-    description: 'Probe whether Initiatives are exposed in this Linear workspace; returns either initiative nodes or an error message.',
-    inputSchema: {
-      type: 'object',
-      properties: {
         first: {
           type: 'number',
-          description: 'Number of initiatives to fetch (default: 20)',
+          description: 'Page size',
           optional: true
         },
         after: {
@@ -441,15 +395,59 @@ export const toolSchemas = {
     }
   },
 
-  linear_list_initiatives: {
-    name: 'linear_list_initiatives',
-    description: 'List initiatives with pagination (id, name, description, url, status, startedAt, targetDate, lead, teams, createdAt, updatedAt).',
+  linear_get_initiatives: {
+    name: 'linear_get_initiatives',
+    description: 'List initiatives (portfolios) and their linked projects (with project priority/status/teams)',
     inputSchema: {
       type: 'object',
       properties: {
-        first: { type: 'number', description: 'Number of initiatives to return (default: 50)', optional: true },
-        after: { type: 'string', description: 'Cursor for pagination', optional: true }
+        teamIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Team IDs to include. Default: CRC and Circles Partners',
+          optional: true
+        },
+        status: {
+          type: 'string',
+          description: 'Initiative status filter (planned|inProgress|paused|completed|canceled)',
+          optional: true
+        },
+        includeArchived: {
+          type: 'boolean',
+          description: 'Include archived initiatives',
+          optional: true
+        },
+        first: {
+          type: 'number',
+          description: 'Page size',
+          optional: true
+        },
+        after: {
+          type: 'string',
+          description: 'Cursor for pagination',
+          optional: true
+        }
       }
+    }
+  },
+
+  linear_get_initiative: {
+    name: 'linear_get_initiative',
+    description: 'Get a single initiative (portfolio) with linked projects (with project priority/status/teams)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          description: 'Initiative (portfolio) identifier'
+        },
+        first: {
+          type: 'number',
+          description: 'Max number of linked projects to return',
+          optional: true
+        }
+      },
+      required: ['id']
     }
   },
 
@@ -476,24 +474,9 @@ export const toolSchemas = {
                 type: 'string',
                 description: 'Team ID',
               },
-              assigneeId: {
-                type: 'string',
-                description: 'Assignee user ID',
-                optional: true,
-              },
-              priority: {
-                type: 'number',
-                description: 'Issue priority (0-4)',
-                optional: true,
-              },
               projectId: {
                 type: 'string',
                 description: 'Project ID',
-                optional: true,
-              },
-              estimate: {
-                type: 'number',
-                description: 'Issue estimate points (typically 1, 2, 3, 5, 8, etc.)',
                 optional: true,
               },
               labelIds: {
@@ -511,6 +494,138 @@ export const toolSchemas = {
         },
       },
       required: ['issues'],
+    },
+  },
+
+  // Enhanced workflow state filtering tools
+
+  linear_get_triage_issues: {
+    name: 'linear_get_triage_issues',
+    description: 'Get triage issues for specified teams using workflow state type filtering',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        teamIds: {
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+          description: 'Array of team IDs to get triage issues for',
+        },
+        first: {
+          type: 'number',
+          description: 'Number of issues to return per team (default: 50)',
+          optional: true,
+        },
+        after: {
+          type: 'string',
+          description: 'Cursor for pagination',
+          optional: true,
+        },
+      },
+      required: ['teamIds'],
+    },
+  },
+
+  linear_search_issues_by_state_type: {
+    name: 'linear_search_issues_by_state_type',
+    description: 'Search issues by workflow state types (triage, backlog, unstarted, started, completed, canceled)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        stateTypes: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['triage', 'backlog', 'unstarted', 'started', 'completed', 'canceled'],
+          },
+          description: 'Array of workflow state types to filter by',
+        },
+        teamIds: {
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+          description: 'Filter by team IDs',
+          optional: true,
+        },
+        assigneeIds: {
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+          description: 'Filter by assignee IDs',
+          optional: true,
+        },
+        query: {
+          type: 'string',
+          description: 'Text search query',
+          optional: true,
+        },
+        first: {
+          type: 'number',
+          description: 'Number of issues to return (default: 50)',
+          optional: true,
+        },
+        after: {
+          type: 'string',
+          description: 'Cursor for pagination',
+          optional: true,
+        },
+        orderBy: {
+          type: 'string',
+          description: 'Field to order by (default: updatedAt)',
+          optional: true,
+        },
+      },
+      required: ['stateTypes'],
+    },
+  },
+
+  linear_get_team_states: {
+    name: 'linear_get_team_states',
+    description: 'Get workflow states for a specific team, optionally filtered by state type',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        teamId: {
+          type: 'string',
+          description: 'Team ID to get states for',
+        },
+        stateType: {
+          type: 'string',
+          enum: ['triage', 'backlog', 'unstarted', 'started', 'completed', 'canceled'],
+          description: 'Optional filter by workflow state type',
+          optional: true,
+        },
+      },
+      required: ['teamId'],
+    },
+  },
+
+  linear_get_states_by_type: {
+    name: 'linear_get_states_by_type',
+    description: 'Get workflow states for multiple teams, filtered by state types',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        teamIds: {
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+          description: 'Array of team IDs to get states for',
+        },
+        stateTypes: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['triage', 'backlog', 'unstarted', 'started', 'completed', 'canceled'],
+          },
+          description: 'Array of workflow state types to filter by',
+        },
+      },
+      required: ['teamIds', 'stateTypes'],
     },
   },
 };

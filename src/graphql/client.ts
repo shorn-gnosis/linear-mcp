@@ -1,8 +1,7 @@
 import { LinearClient } from '@linear/sdk';
 import { DocumentNode } from 'graphql';
-import { 
+import {
   CreateIssueInput, 
-  CreateIssuesInput,
   CreateIssueResponse,
   CreateIssuesResponse,
   UpdateIssueInput,
@@ -11,7 +10,12 @@ import {
   SearchIssuesResponse,
   DeleteIssueResponse,
   Issue,
-  IssueBatchResponse
+  IssueBatchResponse,
+  GetTriageIssuesInput,
+  SearchByStateTypeInput,
+  TriageIssuesResponse,
+  EnhancedSearchFilter,
+  WorkflowStateType
 } from '../features/issues/types/issue.types.js';
 import {
   ProjectInput,
@@ -55,16 +59,14 @@ export class LinearGraphQLClient {
 
   // Create single issue
   async createIssue(input: CreateIssueInput): Promise<CreateIssueResponse> {
-    const { CREATE_ISSUE_MUTATION } = await import('./mutations.js');
-    return this.execute<CreateIssueResponse>(CREATE_ISSUE_MUTATION, { input });
+    const { CREATE_ISSUES_MUTATION } = await import('./mutations.js');
+    return this.execute<CreateIssueResponse>(CREATE_ISSUES_MUTATION, { input: [input] });
   }
 
   // Create multiple issues
-  async createIssues(issues: CreateIssueInput[]): Promise<IssueBatchResponse> {
-    const { CREATE_BATCH_ISSUES } = await import('./mutations.js');
-    return this.execute<IssueBatchResponse>(CREATE_BATCH_ISSUES, {
-      input: { issues }
-    });
+  async createIssues(issues: CreateIssueInput[]): Promise<CreateIssuesResponse> {
+    const { CREATE_ISSUES_MUTATION } = await import('./mutations.js');
+    return this.execute<CreateIssuesResponse>(CREATE_ISSUES_MUTATION, { input: issues });
   }
 
   // Create a project
@@ -110,9 +112,9 @@ export class LinearGraphQLClient {
 
   // Update a single issue
   async updateIssue(id: string, input: UpdateIssueInput): Promise<UpdateIssuesResponse> {
-    const { UPDATE_ISSUE_MUTATION } = await import('./mutations.js');
-    return this.execute<UpdateIssuesResponse>(UPDATE_ISSUE_MUTATION, {
-      id,
+    const { UPDATE_ISSUES_MUTATION } = await import('./mutations.js');
+    return this.execute<UpdateIssuesResponse>(UPDATE_ISSUES_MUTATION, {
+      ids: [id],
       input,
     });
   }
@@ -169,38 +171,10 @@ export class LinearGraphQLClient {
     return this.execute<SearchProjectsResponse>(SEARCH_PROJECTS_QUERY, { filter });
   }
 
-  // List projects with pagination and filters
-  async listProjects(
-    filter: Record<string, unknown> | undefined,
-    first: number = 50,
-    after?: string
-  ): Promise<SearchProjectsResponse & {
-    projects: {
-      pageInfo: { hasNextPage: boolean; endCursor: string | null };
-    }
-  }> {
-    const { LIST_PROJECTS_QUERY } = await import('./queries.js');
-    return this.execute(LIST_PROJECTS_QUERY as any, { filter, first, after });
-  }
-
-  // Probe initiatives connection (non-fatal): returns { ok, data?, error? }
-  async probeInitiatives(first: number = 20, after?: string): Promise<{ ok: boolean; data?: any; error?: string }> {
-    try {
-      const { INITIATIVES_PROBE_QUERY } = await import('./queries.js');
-      const data = await this.execute<any>(INITIATIVES_PROBE_QUERY, { first, after });
-      return { ok: true, data };
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      return { ok: false, error: msg };
-    }
-  }
-
   // Delete a single issue
   async deleteIssue(id: string): Promise<DeleteIssueResponse> {
-    const { DELETE_ISSUE_MUTATION } = await import('./mutations.js');
-    return this.execute<DeleteIssueResponse>(DELETE_ISSUE_MUTATION, {
-      id,
-    })
+    const { DELETE_ISSUES_MUTATION } = await import('./mutations.js');
+    return this.execute<DeleteIssueResponse>(DELETE_ISSUES_MUTATION, { ids: [id] });
   }
 
   // Delete multiple issues
@@ -209,17 +183,114 @@ export class LinearGraphQLClient {
     return this.execute<DeleteIssueResponse>(DELETE_ISSUES_MUTATION, { ids });
   }
 
-  // List initiatives with pagination (minimal fields)
-  async listInitiatives(
+  // New methods for enhanced workflow state filtering
+
+  // Get triage issues for specified teams
+  async getTriageIssues(teamIds: string[], first: number = 50, after?: string): Promise<TriageIssuesResponse> {
+    const { GET_TRIAGE_ISSUES_QUERY } = await import('./queries.js');
+    return this.execute<TriageIssuesResponse>(GET_TRIAGE_ISSUES_QUERY, {
+      teamIds,
+      first,
+      after,
+    });
+  }
+
+  // Get team states with optional state type filtering
+  async getTeamStates(teamId: string, stateType?: WorkflowStateType): Promise<any> {
+    if (stateType) {
+      const { GET_TEAM_STATES_BY_TYPE_QUERY } = await import('./queries.js');
+      return this.execute(GET_TEAM_STATES_BY_TYPE_QUERY, {
+        teamId,
+        stateType,
+      });
+    } else {
+      const { GET_TEAM_STATES_QUERY } = await import('./queries.js');
+      return this.execute(GET_TEAM_STATES_QUERY, {
+        teamId,
+      });
+    }
+  }
+
+  // Search issues by state type with enhanced filtering
+  async searchIssuesByStateType(
+    filter: EnhancedSearchFilter,
     first: number = 50,
-    after?: string
-  ): Promise<{
-    initiatives: {
-      pageInfo: { hasNextPage: boolean; endCursor: string | null };
-      nodes: any[];
-    };
-  }> {
+    after?: string,
+    orderBy: string = "updatedAt"
+  ): Promise<SearchIssuesResponse> {
+    const { SEARCH_ISSUES_BY_STATE_TYPE_QUERY } = await import('./queries.js');
+    
+    // Build GraphQL filter for state types
+    const graphqlFilter: any = {};
+    
+    if (filter.stateTypes && filter.stateTypes.length > 0) {
+      graphqlFilter.state = { type: { in: filter.stateTypes } };
+    }
+    
+    if (filter.teamIds && filter.teamIds.length > 0) {
+      graphqlFilter.team = { id: { in: filter.teamIds } };
+    }
+    
+    if (filter.assigneeIds && filter.assigneeIds.length > 0) {
+      graphqlFilter.assignee = { id: { in: filter.assigneeIds } };
+    }
+    
+    if (filter.query) {
+      graphqlFilter.search = filter.query;
+    }
+    
+    if (filter.project?.id?.eq) {
+      graphqlFilter.project = { id: { eq: filter.project.id.eq } };
+    }
+    
+    if (typeof filter.priority === 'number') {
+      graphqlFilter.priority = { eq: filter.priority };
+    }
+
+    return this.execute<SearchIssuesResponse>(SEARCH_ISSUES_BY_STATE_TYPE_QUERY, {
+      filter: graphqlFilter,
+      first,
+      after,
+      orderBy,
+    });
+  }
+
+  // Enhanced search issues with backward compatibility and state type support
+  async searchIssuesEnhanced(
+    filter: any,
+    first: number = 50,
+    after?: string,
+    orderBy: string = "updatedAt"
+  ): Promise<SearchIssuesResponse> {
+    // Check if this is a legacy search (using state names) or enhanced search (using state types)
+    if (filter.stateTypes && filter.stateTypes.length > 0) {
+      // Use new state type filtering
+      return this.searchIssuesByStateType(filter, first, after, orderBy);
+    } else {
+      // Use legacy search method
+      return this.searchIssues(filter, first, after, orderBy);
+    }
+  }
+
+  // List projects with pagination support
+  async listProjects(filter?: any, first: number = 50, after?: string): Promise<SearchProjectsResponse> {
+    const { SEARCH_PROJECTS_QUERY } = await import('./queries.js');
+    return this.execute<SearchProjectsResponse>(SEARCH_PROJECTS_QUERY, { filter, first, after });
+  }
+
+  // List initiatives (using projects query)
+  async listInitiatives(first: number = 50, after?: string): Promise<SearchProjectsResponse> {
     const { LIST_INITIATIVES_QUERY } = await import('./queries.js');
-    return this.execute<any>(LIST_INITIATIVES_QUERY, { first, after });
+    return this.execute<SearchProjectsResponse>(LIST_INITIATIVES_QUERY, { filter: {}, first, after });
+  }
+
+  // Probe initiatives availability
+  async probeInitiatives(first: number = 20, after?: string): Promise<any> {
+    try {
+      const data = await this.listInitiatives(first, after);
+      return { ok: true, data };
+    } catch (error: any) {
+      return { ok: false, error: error.message };
+    }
   }
 }

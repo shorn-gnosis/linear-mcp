@@ -16,7 +16,11 @@ import {
   SearchIssuesResponse,
   DeleteIssueResponse,
   Issue,
-  IssueBatchResponse
+  GetTriageIssuesInput,
+  SearchByStateTypeInput,
+  EnhancedSearchIssuesInput,
+  TriageIssuesResponse,
+  WorkflowStateType
 } from '../types/issue.types.js';
 
 /**
@@ -36,30 +40,7 @@ export class IssueHandler extends BaseHandler implements IssueHandlerMethods {
       const client = this.verifyAuth();
       this.validateRequiredParams(args, ['title', 'description', 'teamId']);
 
-      // Process input to ensure correct types
-      const processedArgs = { ...args };
-      
-      // Convert estimate to integer if present
-      if (processedArgs.estimate !== undefined) {
-        processedArgs.estimate = parseInt(String(processedArgs.estimate), 10);
-        
-        // If parsing fails, remove the estimate field
-        if (isNaN(processedArgs.estimate)) {
-          delete processedArgs.estimate;
-        }
-      }
-      
-      // Convert priority to integer if present
-      if (processedArgs.priority !== undefined) {
-        processedArgs.priority = parseInt(String(processedArgs.priority), 10);
-        
-        // If parsing fails or out of range, use default priority
-        if (isNaN(processedArgs.priority) || processedArgs.priority < 0 || processedArgs.priority > 4) {
-          processedArgs.priority = 0;
-        }
-      }
-
-      const result = await client.createIssue(processedArgs) as CreateIssueResponse;
+      const result = await client.createIssue(args) as CreateIssueResponse;
 
       if (!result.issueCreate.success || !result.issueCreate.issue) {
         throw new Error('Failed to create issue');
@@ -91,13 +72,13 @@ export class IssueHandler extends BaseHandler implements IssueHandlerMethods {
         throw new Error('Issues parameter must be an array');
       }
 
-      const result = await client.createIssues(args.issues) as IssueBatchResponse;
+      const result = await client.createIssues(args.issues) as CreateIssuesResponse;
 
-      if (!result.issueBatchCreate.success) {
+      if (!result.issueCreate.success) {
         throw new Error('Failed to create issues');
       }
 
-      const createdIssues = result.issueBatchCreate.issues as Issue[];
+      const createdIssues = result.issueCreate.issues as Issue[];
 
       return this.createResponse(
         `Successfully created ${createdIssues.length} issues:\n` +
@@ -122,29 +103,15 @@ export class IssueHandler extends BaseHandler implements IssueHandlerMethods {
         throw new Error('IssueIds parameter must be an array');
       }
 
-      let result;
-      
-      // Handle single issue update vs bulk update differently
-      if (args.issueIds.length === 1) {
-        // For a single issue, use updateIssue which uses the correct 'id' parameter
-        result = await client.updateIssue(args.issueIds[0], args.update) as UpdateIssuesResponse;
-        
-        if (!result.issueUpdate.success) {
-          throw new Error('Failed to update issue');
-        }
-        
-        return this.createResponse(`Successfully updated issue`);
-      } else {
-        // For multiple issues, use updateIssues
-        result = await client.updateIssues(args.issueIds, args.update) as UpdateIssuesResponse;
-        
-        if (!result.issueUpdate.success) {
-          throw new Error('Failed to update issues');
-        }
-        
-        const updatedCount = result.issueUpdate.issues.length;
-        return this.createResponse(`Successfully updated ${updatedCount} issues`);
+      const result = await client.updateIssues(args.issueIds, args.update) as UpdateIssuesResponse;
+
+      if (!result.issueUpdate.success) {
+        throw new Error('Failed to update issues');
       }
+
+      const updatedCount = result.issueUpdate.issues.length;
+
+      return this.createResponse(`Successfully updated ${updatedCount} issues`);
     } catch (error) {
       this.handleError(error, 'update issues');
     }
@@ -160,14 +127,8 @@ export class IssueHandler extends BaseHandler implements IssueHandlerMethods {
       const filter: Record<string, unknown> = {};
       
       if (args.query) {
-        // For both identifier and text searches, use the title filter with contains
-        // This is a workaround since Linear API doesn't directly support identifier filtering
-        filter.or = [
-          { title: { containsIgnoreCase: args.query } },
-          { number: { eq: this.extractIssueNumber(args.query) } }
-        ];
+        filter.search = args.query;
       }
-      
       if (args.filter?.project?.id?.eq) {
         filter.project = { id: { eq: args.filter.project.id.eq } };
       }
@@ -195,17 +156,6 @@ export class IssueHandler extends BaseHandler implements IssueHandlerMethods {
     } catch (error) {
       this.handleError(error, 'search issues');
     }
-  }
-
-  /**
-   * Helper method to extract the issue number from an identifier (e.g., "IDE-11" -> 11)
-   */
-  private extractIssueNumber(query: string): number | null {
-    const match = query.match(/^[A-Z]+-(\d+)$/);
-    if (match && match[1]) {
-      return parseInt(match[1], 10);
-    }
-    return null;
   }
 
   /**
@@ -251,6 +201,101 @@ export class IssueHandler extends BaseHandler implements IssueHandlerMethods {
       );
     } catch (error) {
       this.handleError(error, 'delete issues');
+    }
+  }
+
+  /**
+   * Gets triage issues for specified teams.
+   * Uses workflow state type filtering to properly query triage issues.
+   */
+  async handleGetTriageIssues(args: GetTriageIssuesInput): Promise<BaseToolResponse> {
+    try {
+      const client = this.verifyAuth();
+      this.validateRequiredParams(args, ['teamIds']);
+
+      const result = await client.getTriageIssues(
+        args.teamIds,
+        args.first || 50,
+        args.after
+      ) as TriageIssuesResponse;
+
+      const teams = result.teams?.nodes || [];
+      const totalIssueCount = teams.reduce((count, team) => count + (team.issues?.nodes?.length || 0), 0);
+
+      return this.createResponse(
+        `Found ${totalIssueCount} triage issues across ${teams.length} teams\n\n` +
+        teams.map(team => {
+          const teamIssueCount = team.issues?.nodes?.length || 0;
+          const triageStateName = team.triageIssueState?.name || 'Triage';
+          
+          return `Team: ${team.name} (${team.key})\n` +
+            `Triage State: ${triageStateName}\n` +
+            `Issues (${teamIssueCount}):\n` +
+            (team.issues?.nodes?.map((issue: Issue) => 
+              `  - ${issue.identifier}: ${issue.title}\n` +
+              `    State: ${issue.state?.name || 'Unknown'}\n` +
+              `    Assignee: ${issue.assignee?.name || 'Unassigned'}\n` +
+              `    URL: ${issue.url || 'N/A'}`
+            ).join('\n') || '  No triage issues found');
+        }).join('\n\n') || 'No teams found'
+      );
+    } catch (error) {
+      this.handleError(error, 'get triage issues');
+    }
+  }
+
+  /**
+   * Searches issues by workflow state types with enhanced filtering.
+   * Supports filtering by state types like 'triage', 'backlog', etc.
+   */
+  async handleSearchIssuesByStateType(args: SearchByStateTypeInput): Promise<BaseToolResponse> {
+    try {
+      const client = this.verifyAuth();
+      this.validateRequiredParams(args, ['stateTypes']);
+
+      // Validate state types
+      const validStateTypes: WorkflowStateType[] = [
+        'triage', 'backlog', 'unstarted', 'started', 'completed', 'canceled'
+      ];
+      
+      const invalidTypes = args.stateTypes.filter(type => !validStateTypes.includes(type));
+      if (invalidTypes.length > 0) {
+        throw new Error(
+          `Invalid state types: ${invalidTypes.join(', ')}. ` +
+          `Valid types are: ${validStateTypes.join(', ')}`
+        );
+      }
+
+      // Build filter object for the GraphQL client
+      const filter = {
+        stateTypes: args.stateTypes,
+        teamIds: args.teamIds,
+        assigneeIds: args.assigneeIds,
+        query: args.query
+      };
+
+      const result = await client.searchIssuesByStateType(
+        filter,
+        args.first || 50,
+        args.after,
+        args.orderBy || 'updatedAt'
+      ) as SearchIssuesResponse;
+
+      const issueCount = result.issues?.nodes?.length || 0;
+
+      return this.createResponse(
+        `Found ${issueCount} issues with state types: ${args.stateTypes.join(', ')}\n\n` +
+        `Issues:\n` +
+        (result.issues?.nodes?.map((issue: Issue) => 
+          `- ${issue.identifier}: ${issue.title}\n` +
+          `  State: ${issue.state?.name || 'Unknown'} (${issue.state?.type || 'unknown'})\n` +
+          `  Team: ${issue.team?.name || 'Unknown'}\n` +
+          `  Assignee: ${issue.assignee?.name || 'Unassigned'}\n` +
+          `  URL: ${issue.url || 'N/A'}`
+        ).join('\n\n') || `No issues found with state types: ${args.stateTypes.join(', ')}`)
+      );
+    } catch (error) {
+      this.handleError(error, 'search issues by state type');
     }
   }
 }

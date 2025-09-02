@@ -58,72 +58,6 @@ export const SEARCH_ISSUES_QUERY = gql`
   }
 `;
 
-export const INITIATIVES_PROBE_QUERY = gql`
-  query InitiativesProbe($first: Int, $after: String) {
-    initiatives(first: $first, after: $after) {
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-      nodes {
-        id
-        name
-        description
-        url
-        status
-        startedAt
-        targetDate
-        createdAt
-        updatedAt
-        lead {
-          id
-          name
-          email
-        }
-        teams {
-          nodes {
-            id
-            name
-            key
-          }
-        }
-      }
-    }
-  }
-`;
-
-// List initiatives with pagination (minimal fields)
-export const LIST_INITIATIVES_QUERY = gql`
-  query ListInitiatives($first: Int, $after: String) {
-    initiatives(first: $first, after: $after) {
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-      nodes {
-        id
-        name
-        description
-        url
-        status
-        startedAt
-        targetDate
-        createdAt
-        updatedAt
-        owner { id name email }
-        projects {
-          nodes {
-            id
-            name
-            status { type name }
-            teams { nodes { id key name } }
-          }
-        }
-      }
-    }
-  }
-`;
-
 export const GET_TEAMS_QUERY = gql`
   query GetTeams {
     teams {
@@ -182,21 +116,34 @@ export const SEARCH_PROJECTS_QUERY = gql`
           name
         }
         priority
-        priorityLabel
-        startDate
-        targetDate
+        color
+        sortOrder
+        health
+        progress
         createdAt
         updatedAt
+        startedAt
+        targetDate
+        completedAt
+        canceledAt
+        archivedAt
         lead {
           id
           name
-          email
         }
         teams {
           nodes {
             id
             name
             key
+          }
+        }
+        labels {
+          nodes {
+            id
+            name
+            description
+            color
           }
         }
       }
@@ -213,19 +160,10 @@ export const GET_PROJECT_QUERY = gql`
       url
       status {
         type
-        name
       }
       priority
-      priorityLabel
-      startDate
+      archivedAt
       targetDate
-      createdAt
-      updatedAt
-      lead {
-        id
-        name
-        email
-      }
       teams {
         nodes {
           id
@@ -237,9 +175,8 @@ export const GET_PROJECT_QUERY = gql`
   }
 `;
 
-// List projects with pagination and filters
-export const LIST_PROJECTS_QUERY = gql`
-  query ListProjects($filter: ProjectFilter, $first: Int, $after: String) {
+export const LIST_INITIATIVES_QUERY = gql`
+  query ListInitiatives($filter: ProjectFilter, $first: Int, $after: String) {
     projects(filter: $filter, first: $first, after: $after) {
       pageInfo {
         hasNextPage
@@ -249,29 +186,200 @@ export const LIST_PROJECTS_QUERY = gql`
         id
         name
         description
-        url
         status {
           type
-          name
         }
-        priority
-        priorityLabel
-        startDate
         targetDate
-        createdAt
-        updatedAt
-        lead {
+        teams { nodes { id key name } }
+      }
+    }
+  }
+`;
+
+export const GET_INITIATIVE_QUERY = gql`
+  query GetInitiative($id: String!, $first: Int) {
+    project(id: $id) {
+      id
+      name
+      description
+      status {
+        type
+      }
+      targetDate
+      teams { nodes { id key name } }
+    }
+  }
+`;
+
+export const GET_TRIAGE_ISSUES_QUERY = gql`
+  query GetTriageIssues($teamIds: [ID!]!, $first: Int, $after: String) {
+    teams(filter: { id: { in: $teamIds } }) {
+      nodes {
+        id
+        name
+        key
+        triageIssueState {
+          id
+          name
+          type
+          color
+        }
+        issues(
+          filter: { state: { type: { eq: "triage" } } }
+          first: $first
+          after: $after
+        ) {
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+          nodes {
+            id
+            identifier
+            title
+            description
+            url
+            state {
+              id
+              name
+              type
+              color
+            }
+            assignee {
+              id
+              name
+              email
+            }
+            team {
+              id
+              name
+              key
+            }
+            project {
+              id
+              name
+            }
+            priority
+            labels {
+              nodes {
+                id
+                name
+                color
+              }
+            }
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const GET_TEAM_STATES_QUERY = gql`
+  query GetTeamStates($teamId: String!) {
+    team(id: $teamId) {
+      id
+      name
+      key
+      states {
+        nodes {
+          id
+          name
+          type
+          color
+          position
+        }
+      }
+      triageIssueState {
+        id
+        name
+        type
+        color
+      }
+    }
+  }
+`;
+
+export const GET_TEAM_STATES_BY_TYPE_QUERY = gql`
+  query GetTeamStatesByType($teamId: String!, $stateType: String!) {
+    team(id: $teamId) {
+      id
+      name
+      key
+      states(filter: { type: { eq: $stateType } }) {
+        nodes {
+          id
+          name
+          type
+          color
+          position
+        }
+      }
+      triageIssueState {
+        id
+        name
+        type
+        color
+      }
+    }
+  }
+`;
+
+export const SEARCH_ISSUES_BY_STATE_TYPE_QUERY = gql`
+  query SearchIssuesByStateType(
+    $filter: IssueFilter
+    $first: Int
+    $after: String
+    $orderBy: PaginationOrderBy
+  ) {
+    issues(
+      filter: $filter
+      first: $first
+      after: $after
+      orderBy: $orderBy
+      includeArchived: false
+    ) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        id
+        identifier
+        title
+        description
+        url
+        state {
+          id
+          name
+          type
+          color
+        }
+        assignee {
           id
           name
           email
         }
-        teams {
+        team {
+          id
+          name
+          key
+        }
+        project {
+          id
+          name
+        }
+        priority
+        labels {
           nodes {
             id
             name
-            key
+            color
           }
         }
+        createdAt
+        updatedAt
       }
     }
   }

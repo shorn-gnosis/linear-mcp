@@ -79,6 +79,10 @@ export interface ProjectResponse {
 
 export interface SearchProjectsResponse {
   projects: {
+    pageInfo?: {
+      hasNextPage: boolean;
+      endCursor?: string;
+    };
     nodes: Array<ProjectSummary>;
   };
 }

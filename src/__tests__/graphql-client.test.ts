@@ -237,11 +237,11 @@ describe('LinearGraphQLClient', () => {
       
       const result: CreateIssueResponse = await graphqlClient.createIssue(input);
 
-      // Verify single mutation call with direct input (not array)
+      // Verify single mutation call with input as array
       expect(mockRawRequest).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          input: input
+          input: [input]
         })
       );
 
@@ -487,7 +487,7 @@ describe('LinearGraphQLClient', () => {
         }
       ];
 
-      const result: IssueBatchResponse = await graphqlClient.createIssues(issues);
+      const result: CreateIssuesResponse = await graphqlClient.createIssues(issues);
 
       expect(result).toEqual(mockResponse.data);
       // Verify single mutation call
@@ -495,7 +495,7 @@ describe('LinearGraphQLClient', () => {
       expect(mockRawRequest).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          input: { issues }
+          input: issues
         })
       );
     });
@@ -713,12 +713,12 @@ describe('LinearGraphQLClient', () => {
       const result: UpdateIssuesResponse = await graphqlClient.updateIssue(id, updateInput);
 
       expect(result).toEqual(mockResponse.data);
-      // Verify single mutation call with direct id (not array)
+      // Verify single mutation call with ids as array
       expect(mockRawRequest).toHaveBeenCalledTimes(1);
       expect(mockRawRequest).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          id,
+          ids: [id],
           input: updateInput
         })
       );
@@ -741,12 +741,12 @@ describe('LinearGraphQLClient', () => {
       const result: DeleteIssueResponse = await graphqlClient.deleteIssue(id)
 
       expect(result).toEqual(mockResponse.data)
-      // Verify single mutation call
+      // Verify single mutation call with ids as array
       expect(mockRawRequest).toHaveBeenCalledTimes(1)
       expect(mockRawRequest).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          id,
+          ids: [id],
         })
       )
     })
